@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Sheet Table with Vertical Filters</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <style>
+    .filters {
+      margin-bottom: 20px;
+    }
+    .filters select {
+      display: block;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      width: 100%;
+      max-width: 300px;
+      margin-bottom: 15px;
+    }
+    table.dataTable thead th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Find Your Place</h2>
+
+<div class="filters" id="filter-container">
+  <!-- Each filter will appear on its own line -->
+</div>
+
+<table id="sheetTable" class="display" style="width:100%">
+  <thead></thead>
+  <tbody></tbody>
+</table>
+
+<script>
+  const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTeyIq7qPJkRcxxwLwuPYG8SNUChHopf3n83a56cHzdTAzJRgybLq7lUtDw9gF4n-BFRVO6zxuHIJyV/pub?output=csv'; // Replace with your actual link
+
+  function parseCSV(csv) {
+    const rows = csv.trim().split("\n");
+    const headers = rows[0].split(",");
+    const dataRows = rows.slice(1);
+    return { headers, dataRows };
+  }
+
+  function createFilters(headers, dataRows) {
+    const container = document.getElementById("filter-container");
+
+    headers.forEach((header, index) => {
+      if (index === 0) return; // Skip first column (e.g., Neighborhood)
+
+      const select = document.createElement("select");
+      select.dataset.colIndex = index;
+
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.text = `Filter by ${header}`;
+      select.appendChild(defaultOption);
+
+      const uniqueValues = [...new Set(dataRows.map(row => row.split(",")[index]))].sort();
+      uniqueValues.forEach(val => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.text = val;
+        select.appendChild(opt);
+      });
+
+      container.appendChild(select);
+    });
+  }
+
+  $.get(csvUrl, function(data) {
+    const { headers, dataRows } = parseCSV(data);
+
+    // Table header
+    const theadHtml = "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
+    $('#sheetTable thead').html(theadHtml);
+
+    // Table body
+    const tbodyHtml = dataRows.map(row => {
+      const cells = row.split(",");
+      return "<tr>" + cells.map(cell => `<td>${cell}</td>`).join("") + "</tr>";
+    }).join("");
+    $('#sheetTable tbody').html(tbodyHtml);
+
+    // Initialize DataTable
+    const table = $('#sheetTable').DataTable();
+
+    // Add filters
+    createFilters(headers, dataRows);
+
+    // Hook up filters to table
+    $('#filter-container select').on('change', function () {
+      const index = $(this).data('colIndex');
+      const value = $(this).val();
+      table.column(index).search(value ? '^' + value + '$' : '', true, false).draw();
+    });
+  });
+</script>
+
+</body>
+</html>
